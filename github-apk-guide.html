@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude → GitHub → APK Qo'llanma</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#08090F;--card:#0F1117;--card2:#141720;
+  --green:#00E676;--blue:#448AFF;--purple:#CE93D8;
+  --orange:#FFB74D;--red:#FF5252;--text:#F1F3FF;
+  --muted:#6B7399;--border:rgba(68,138,255,0.15);
+}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 60% 40% at 20% 10%,rgba(0,230,118,0.04) 0%,transparent 60%),radial-gradient(ellipse 50% 50% at 80% 80%,rgba(68,138,255,0.05) 0%,transparent 60%);pointer-events:none;z-index:0;}
+.wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:40px 20px 80px;}
+
+/* HEADER */
+.header{text-align:center;margin-bottom:48px;animation:fadeDown .7s ease both;}
+.tag{display:inline-flex;align-items:center;gap:6px;background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.3);color:var(--green);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:5px 14px;border-radius:20px;margin-bottom:20px;}
+.tag-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.4s infinite;}
+h1{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:800;line-height:1.15;margin-bottom:14px;}
+h1 .hl{background:linear-gradient(120deg,var(--green),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.header-sub{color:var(--muted);font-size:14px;}
+
+/* FLOW */
+.flow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;margin-bottom:52px;animation:fadeUp .8s .2s ease both;}
+.flow-item{display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;min-width:100px;}
+.flow-icon{font-size:24px;}
+.flow-label{font-size:10px;font-weight:700;color:var(--muted);text-align:center;}
+.flow-arrow{font-size:18px;color:var(--green);opacity:.5;align-self:center;}
+
+/* PROGRESS */
+.progress-wrap{position:sticky;top:0;z-index:100;background:rgba(8,9,15,0.92);backdrop-filter:blur(12px);padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+.progress-label{font-size:11px;color:var(--muted);white-space:nowrap;font-weight:600;}
+.progress-bar-bg{flex:1;height:4px;background:rgba(255,255,255,0.08);border-radius:2px;}
+.progress-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--green),var(--blue));transition:width .4s ease;width:0%;}
+.progress-count{font-size:11px;color:var(--green);font-family:'JetBrains Mono',monospace;white-space:nowrap;}
+
+/* STEPS */
+.steps{display:flex;flex-direction:column;gap:24px;}
+.step{opacity:0;transform:translateY(24px);transition:opacity .5s ease,transform .5s ease;}
+.step.visible{opacity:1;transform:translateY(0);}
+.step-inner{background:var(--card);border:1px solid var(--border);border-radius:20px;overflow:hidden;}
+
+.step-head{display:flex;align-items:center;gap:14px;padding:18px 22px;border-bottom:1px solid transparent;cursor:pointer;user-select:none;transition:background .2s;}
+.step-head:hover{background:rgba(68,138,255,0.04);}
+.step-inner.open .step-head{border-bottom-color:var(--border);}
+
+.step-num{flex:0 0 40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:#fff;}
+.s1 .step-num{background:linear-gradient(135deg,#00C853,#00E676);}
+.s2 .step-num{background:linear-gradient(135deg,#1565C0,#448AFF);}
+.s3 .step-num{background:linear-gradient(135deg,#6A1B9A,#CE93D8);}
+.s4 .step-num{background:linear-gradient(135deg,#E65100,#FFB74D);}
+.s5 .step-num{background:linear-gradient(135deg,#B71C1C,#FF5252);}
+.s6 .step-num{background:linear-gradient(135deg,#00695C,#26A69A);}
+
+.step-title-wrap{flex:1;}
+.step-title{font-size:15px;font-weight:700;margin-bottom:2px;}
+.step-desc{font-size:11px;color:var(--muted);}
+.step-chevron{color:var(--muted);font-size:16px;transition:transform .3s;}
+.step-inner.open .step-chevron{transform:rotate(180deg);}
+
+.step-body{display:none;padding:22px;flex-direction:column;gap:16px;}
+.step-inner.open .step-body{display:flex;}
+
+/* BROWSER MOCKUP */
+.browser{background:#0D1117;border-radius:12px;border:1px solid rgba(255,255,255,0.06);overflow:hidden;}
+.browser-bar{background:#161B22;padding:9px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,0.06);}
+.bdots{display:flex;gap:5px;}
+.bd{width:10px;height:10px;border-radius:50%;}
+.bd.r{background:#FF5F56;}.bd.y{background:#FFBD2E;}.bd.g{background:#27C93F;}
+.browser-url{flex:1;background:#0D1117;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:4px 12px;font-size:11px;color:#58A6FF;font-family:'JetBrains Mono',monospace;}
+.browser-body{padding:16px;}
+
+/* YAML */
+.yaml{background:#0D1117;border-radius:10px;border:1px solid rgba(255,255,255,0.06);padding:16px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.9;overflow-x:auto;}
+
+/* LOG */
+.actions-log{background:#0A0C12;border-radius:10px;border:1px solid rgba(255,255,255,0.06);padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:2;}
+.log-line{display:flex;gap:10px;}
+.log-time{color:#546E7A;min-width:45px;}
+
+/* INFO BOX */
+.info-box{display:flex;gap:12px;align-items:flex-start;background:rgba(68,138,255,0.07);border:1px solid rgba(68,138,255,0.2);border-radius:12px;padding:13px 15px;}
+.info-box.green{background:rgba(0,230,118,0.07);border-color:rgba(0,230,118,0.2);}
+.info-box.orange{background:rgba(255,183,77,0.07);border-color:rgba(255,183,77,0.2);}
+.info-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+.info-text{font-size:12px;color:var(--muted);line-height:1.6;}
+.info-text strong{color:var(--text);}
+
+/* FILE TREE */
+.file-tree{display:flex;flex-direction:column;gap:2px;}
+.file-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;font-size:12px;font-family:'JetBrains Mono',monospace;color:#C9D1D9;}
+.file-row:hover{background:rgba(255,255,255,0.04);}
+.fi{font-size:13px;width:18px;text-align:center;}
+.fb{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;margin-left:auto;}
+.fb.new{background:rgba(0,230,118,0.15);color:#00E676;}
+
+/* SUCCESS CARD */
+.success-card{background:linear-gradient(135deg,rgba(0,230,118,0.08),rgba(68,138,255,0.08));border:1px solid rgba(0,230,118,0.25);border-radius:14px;padding:20px;display:flex;align-items:center;gap:16px;}
+.sc-icon{font-size:38px;}
+.sc-info h3{font-size:15px;font-weight:700;margin-bottom:4px;}
+.sc-info p{font-size:12px;color:var(--muted);}
+
+/* FOOTER */
+.footer{margin-top:48px;text-align:center;color:var(--muted);font-size:12px;}
+.footer strong{color:var(--green);}
+
+@keyframes fadeDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+</style>
+</head>
+<body>
+
+<div class="progress-wrap">
+  <span class="progress-label">📋 Qadam</span>
+  <div class="progress-bar-bg"><div class="progress-bar-fill" id="pFill"></div></div>
+  <span class="progress-count" id="pCount">0 / 6</span>
+</div>
+
+<div class="wrap">
+
+  <div class="header">
+    <div class="tag"><span class="tag-dot"></span>Bepul · Kompyuter shart emas</div>
+    <h1>Claude kodi → <span class="hl">GitHub</span> → APK</h1>
+    <p class="header-sub">6 ta qadamda, avtomatik ravishda, bepul APK oling</p>
+  </div>
+
+  <div class="flow">
+    <div class="flow-item"><span class="flow-icon">🤖</span><span class="flow-label">Claude<br>Kod yozadi</span></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-item"><span class="flow-icon">📁</span><span class="flow-label">GitHub<br>Repo</span></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-item"><span class="flow-icon">⚙️</span><span class="flow-label">Actions<br>Build</span></div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-item"><span class="flow-icon">📱</span><span class="flow-label">APK<br>Tayyor!</span></div>
+  </div>
+
+  <div class="steps">
+
+    <!-- STEP 1 -->
+    <div class="step s1" data-step="1">
+      <div class="step-inner">
+        <div class="step-head" onclick="toggleStep(this)">
+          <div class="step-num">01</div>
+          <div class="step-title-wrap">
+            <div class="step-title">GitHub.com ga kiring</div>
+            <div class="step-desc">Bepul akkaunt oching yoki mavjud akkaunt bilan kiring</div>
+          </div>
+          <span class="step-chevron">▾</span>
+        </div>
+        <div class="step-body">
+          <div class="browser">
+            <div class="browser-bar">
+              <div class="bdots"><div class="bd r"></div><div class="bd y"></div><div class="bd g"></div></div>
+              <div class="browser-url">🔒 github.com/signup</div>
+            </div>
+            <div class="browser-body">
+              <div style="background:#0D1117;border-radius:10px;padding:24px;text-align:center;">
+                <div style="font-size:36px;margin-bottom:12px;">🐙</div>
+                <div style="font-size:16px;font-weight:700;color:#F0F6FC;margin-bottom:6px;">GitHub ga xush kelibsiz</div>
+                <div style="font-size:12px;color:#8B949E;margin-bottom:20px;">Dunyodagi eng yirik kod platformasi</div>
+                <div style="display:flex;flex-direction:column;gap:10px;max-width:260px;margin:0 auto;">
+                  <input style="background:#21262D;border:1px solid #30363D;border-radius:6px;padding:9px 14px;color:#F0F6FC;font-size:13px;outline:none;" placeholder="Username yoki email" disabled/>
+                  <div style="background:#238636;color:#fff;padding:10px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">✔ Sign up for GitHub</div>
+                  <div style="font-size:11px;color:#58A6FF;">Google bilan ham kirsa bo'ladi</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="info-box green">
+            <span class="info-icon">✅</span>
+            <div class="info-text"><strong>github.com</strong> → "Sign up" bosing. Email va parol kiriting. Tasdiqlang. Tayyor!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step s2" data-step="2">
+      <div class="step-inner">
+        <div class="step-head" onclick="toggleStep(this)">
+          <div class="step-num">02</div>
+          <div class="step-title-wrap">
+            <div class="step-title">Yangi Repository yarating</div>
+            <div class="step-desc">Loyiha uchun papka — github.com/new</div>
+          </div>
+          <span class="step-chevron">▾</span>
+        </div>
+        <div class="step-body">
+          <div class="browser">
+            <div class="browser-bar">
+              <div class="bdots"><div class="bd r"></div><div class="bd y"></div><div class="bd g"></div></div>
+              <div class="browser-url">🔒 github.com/new</div>
+            </div>
+            <div class="browser-body">
+              <div style="display:flex;flex-direction:column;gap:14px;">
+                <div>
+                  <div style="font-size:11px;color:#8B949E;font-weight:600;margin-bottom:5px;">Repository name *</div>
+                  <div style="background:#0D1117;border:2px solid #58A6FF;border-radius:6px;padding:9px 14px;font-size:13px;color:#58A6FF;font-family:'JetBrains Mono',monospace;">txt-to-audio-app</div>
+                </div>
+                <div style="display:flex;gap:16px;">
+                  <div style="display:flex;align-items:center;gap:7px;">
+                    <div style="width:14px;height:14px;border-radius:50%;border:2px solid #58A6FF;display:flex;align-items:center;justify-content:center;"><div style="width:6px;height:6px;border-radius:50%;background:#58A6FF;"></div></div>
+                    <span style="font-size:12px;color:#C9D1D9;">🔓 Public</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:7px;">
+                    <div style="width:14px;height:14px;border-radius:50%;border:1px solid #30363D;"></div>
+                    <span style="font-size:12px;color:#8B949E;">🔒 Private</span>
+                  </div>
+                </div>
+                <div style="background:#238636;color:#fff;padding:10px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;">Create repository</div>
+              </div>
+            </div>
+          </div>
+          <div class="info-box">
+            <span class="info-icon">💡</span>
+            <div class="info-text">Nom: <strong>txt-to-audio-app</strong> · <strong>Public</strong> tanlang (bepul build uchun shart) · "Create" bosing.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step s3" data-step="3">
+      <div class="step-inner">
+        <div class="step-head" onclick="toggleStep(this)">
+          <div class="step-num">03</div>
+          <div class="step-title-wrap">
+            <div class="step-title">Fayllarni yuklang</div>
+            <div class="step-desc">Claude yozgan 4 ta faylni GitHub'ga qo'shing</div>
+          </div>
+          <span class="step-chevron">▾</span>
+        </div>
+        <div class="step-body">
+          <div class="browser">
+            <div class="browser-bar">
+              <div class="bdots"><div class="bd r"></div><div class="bd y"></div><div class="bd g"></div></div>
+              <div class="browser-url">🔒 github.com/siz/txt-to-audio-app</div>
+            </div>
+            <div class="browser-body">
+              <div style="background:#161B22;border-radius:8px;padding:10px;margin-bottom:12px;display:flex;justify-content:flex-end;gap:8px;">
+                <div style="background:#21262D;border:1px solid #30363D;border-radius:6px;padding:6px 14px;font-size:11px;color:#C9D1D9;">Add file ▾</div>
+                <div style="background:#238636;border-radius:6px;padding:6px 14px;font-size:11px;color:#fff;font-weight:600;">⬆ Upload files</div>
+              </div>
+              <div class="file-tree">
+                <div class="file-row"><span class="fi">📁</span><span style="color:#58A6FF;">app/src/main/java/com/example/txttoaudio/</span></div>
+                <div class="file-row" style="padding-left:26px;"><span class="fi">☕</span><span style="flex:1;">MainActivity.java</span><span class="fb new">yuklang</span></div>
+                <div class="file-row"><span class="fi">📁</span><span style="color:#58A6FF;">app/src/main/res/layout/</span></div>
+                <div class="file-row" style="padding-left:26px;"><span class="fi">🎨</span><span style="flex:1;">activity_main.xml</span><span class="fb new">yuklang</span></div>
+                <div class="file-row"><span class="fi">📄</span><span style="flex:1;">app/src/main/AndroidManifest.xml</span><span class="fb new">yuklang</span></div>
+                <div class="file-row"><span class="fi">🔧</span><span style="flex:1;">app/build.gradle</span><span class="fb new">yuklang</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="info-box orange">
+            <span class="info-icon">⬆️</span>
+            <div class="info-text"><strong>"Upload files"</strong> tugmasini bosib, Claude yozgan <strong>4 ta faylni</strong> to'g'ri papkalarga joylang. Papka yo'llarini aniq kiriting.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="step s4" data-step="4">
+      <div class="step-inner">
+        <div class="step-head" onclick="toggleStep(this)">
+          <div class="step-num">04</div>
+          <div class="step-title-wrap">
+            <div class="step-title">GitHub Actions fayl qo'shing</div>
+            <div class="step-desc">Bu fayl avtomatik APK yasaydi — nusxa oling</div>
+          </div>
+          <span class="step-chevron">▾</span>
+        </div>
+        <div class="step-body">
+          <div class="info-box">
+            <span class="info-icon">📂</span>
+            <div class="info-text">Repo'da <strong>"Add file → Create new file"</strong> bosing. Nom: <strong>.github/workflows/build.yml</strong></div>
+          </div>
+          <div class="yaml">
+<span style="color:#FF7B72;">name</span><span style="color:#C9D1D9;">: Build APK
+
+</span><span style="color:#FF7B72;">on</span><span style="color:#C9D1D9;">:
+  </span><span style="color:#FF7B72;">push</span><span style="color:#C9D1D9;">:
+    </span><span style="color:#FF7B72;">branches</span><span style="color:#C9D1D9;">: [ main ]
+
+</span><span style="color:#FF7B72;">jobs</span><span style="color:#C9D1D9;">:
+  </span><span style="color:#FF7B72;">build</span><span style="color:#C9D1D9;">:
+    </span><span style="color:#FF7B72;">runs-on</span><span style="color:#C9D1D9;">: ubuntu-latest
+    </span><span style="color:#FF7B72;">steps</span><span style="color:#C9D1D9;">:
+      - </span><span style="color:#FF7B72;">uses</span><span style="color:#C9D1D9;">: actions/checkout@v4
+
+      - </span><span style="color:#FF7B72;">name</span><span style="color:#C9D1D9;">: Java o'rnatish
+        </span><span style="color:#FF7B72;">uses</span><span style="color:#C9D1D9;">: actions/setup-java@v4
+        </span><span style="color:#FF7B72;">with</span><span style="color:#C9D1D9;">:
+          </span><span style="color:#FF7B72;">java-version</span><span style="color:#C9D1D9;">: '17'
+          </span><span style="color:#FF7B72;">distribution</span><span style="color:#C9D1D9;">: temurin
+
+      - </span><span style="color:#FF7B72;">name</span><span style="color:#C9D1D9;">: APK yasash
+        </span><span style="color:#FF7B72;">run</span><span style="color:#C9D1D9;">: ./gradlew assembleDebug
+
+      - </span><span style="color:#FF7B72;">name</span><span style="color:#C9D1D9;">: APK saqlash
+        </span><span style="color:#FF7B72;">uses</span><span style="color:#C9D1D9;">: actions/upload-artifact@v4
+        </span><span style="color:#FF7B72;">with</span><span style="color:#C9D1D9;">:
+          </span><span style="color:#FF7B72;">name</span><span style="color:#C9D1D9;">: TxtToAudio-APK
+          </span><span style="color:#FF7B72;">path</span><span style="color:#C9D1D9;">: app/build/outputs/apk/debug/*.apk</span>
+          </div>
+          <div class="info-box green">
+            <span class="info-icon">✅</span>
+            <div class="info-text">Yuqoridagi matnni <strong>to'liq nusxa oling</strong>, faylga joylashtiring va <strong>"Commit changes"</strong> bosing.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 5 -->
+    <div class="step s5" data-step="5">
+      <div class="step-inner">
+        <div class="step-head" onclick="toggleStep(this)">
+          <div class="step-num">05</div>
+          <div class="step-title-wrap">
+            <div class="step-title">Actions tugashini kuting</div>
+            <div class="step-desc">GitHub serverlari APK yasaydi — 3-5 daqiqa</div>
+          </div>
+          <span class="step-chevron">▾</span>
+        </div>
+        <div class="step-body">
+          <div class="browser">
+            <div class="browser-bar">
+              <div class="bdots"><div class="bd r"></div><div class="bd y"></div><div class="bd g"></div></div>
+              <div class="browser-url">🔒 github.com/siz/txt-to-audio-app/actions</div>
+            </div>
+            <div class="browser-body">
+              <div style="font-size:13px;font-weight:700;color:#F0F6FC;margin-bottom:12px;">⚙️ Actions → Build APK</div>
+              <div class="actions-log">
+                <div class="log-line"><span class="log-time">0:00</span><span style="color:#FFB74D;">🟡 Ishga tushdi...</span></div>
+                <div class="log-line"><span class="log-time">0:15</span><span style="color:#82AAFF;">📦 Ubuntu server tayyor</span></div>
+                <div class="log-line"><span class="log-time">0:30</span><span style="color:#82AAFF;">☕ Java 17 o'rnatildi</span></div>
+                <div class="log-line"><span class="log-time">1:50</span><span style="color:#82AAFF;">🔧 Android SDK sozlandi</span></div>
+                <div class="log-line"><span class="log-time">3:15</span><span style="color:#82AAFF;">🏗️ Kod compile bo'lmoqda...</span></div>
+                <div class="log-line"><span class="log-time">4:40</span><span style="color:#00E676;">✅ APK muvaffaqiyatli yasaldi!</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="info-box">
+            <span class="info-icon">⏱️</span>
+            <div class="info-text">Hamma narsa <strong>avtomatik</strong>. Siz faqat kuting — GitHub serverlari bepul ishlaydi.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 6 -->
+    <div class="step s6" data-step="6">
+      <div class="step-inner">
+        <div class="step-head" onclick="toggleStep(this)">
+          <div class="step-num">06</div>
+          <div class="step-title-wrap">
+            <div class="step-title">APK ni yuklab oling!</div>
+            <div class="step-desc">Artifacts bo'limida tayyor APK sizni kutmoqda</div>
+          </div>
+          <span class="step-chevron">▾</span>
+        </div>
+        <div class="step-body">
+          <div class="browser">
+            <div class="browser-bar">
+              <div class="bdots"><div class="bd r"></div><div class="bd y"></div><div class="bd g"></div></div>
+              <div class="browser-url">🔒 github.com/siz/txt-to-audio-app/actions</div>
+            </div>
+            <div class="browser-body">
+              <div style="font-size:13px;font-weight:700;color:#3FB950;margin-bottom:14px;">✅ Build APK — muvaffaqiyatli</div>
+              <div style="background:#161B22;border:1px solid #30363D;border-radius:8px;padding:14px;">
+                <div style="font-size:10px;color:#8B949E;margin-bottom:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">📦 Artifacts</div>
+                <div style="display:flex;align-items:center;gap:12px;background:#0D1117;border:1px solid #30363D;border-radius:8px;padding:12px 14px;">
+                  <span style="font-size:22px;">📦</span>
+                  <div style="flex:1;">
+                    <div style="font-size:13px;color:#58A6FF;font-weight:600;">TxtToAudio-APK</div>
+                    <div style="font-size:11px;color:#8B949E;">app-debug.apk · 2.4 MB</div>
+                  </div>
+                  <div style="background:#238636;color:#fff;padding:7px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">⬇ Download</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="success-card">
+            <span class="sc-icon">🎉</span>
+            <div class="sc-info">
+              <h3>APK tayyor! Barakalla!</h3>
+              <p>Yuklab oling → telefoningizga yuboring → o'rnating → foydalaning!</p>
+            </div>
+          </div>
+          <div class="info-box green">
+            <span class="info-icon">📱</span>
+            <div class="info-text">APK faylini <strong>Telegram yoki WhatsApp</strong> orqali o'zingizga yuboring. Telefondan oching va o'rnating. Tayyor!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    Jami <strong>6 qadam</strong> · Bepul · GitHub Actions · Hech narsa o'rnatish shart emas
+  </div>
+
+</div>
+
+<script>
+function toggleStep(head) {
+  const inner = head.closest('.step-inner');
+  inner.classList.toggle('open');
+  updateProgress();
+}
+
+function updateProgress() {
+  const opened = document.querySelectorAll('.step-inner.open').length;
+  const pct = (opened / 6) * 100;
+  document.getElementById('pFill').style.width = pct + '%';
+  document.getElementById('pCount').textContent = opened + ' / 6';
+}
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.step').forEach(s => observer.observe(s));
+
+setTimeout(() => {
+  const first = document.querySelector('.step-inner');
+  if (first) { first.classList.add('open'); updateProgress(); }
+}, 500);
+</script>
+</body>
+</html>
